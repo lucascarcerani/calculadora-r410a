@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Calculadora R-410A</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: ferramenta de bancada — entradas à esquerda, leituras como mostradores à direita */
+:root{
+  --bg:#EEF0EF; --surface:#F9FAF9; --ink:#1B2124; --muted:#5E686D; --line:#CDD3D3;
+  --accent:#A86E00; --ok:#2E7D4F; --warn:#A86E00; --crit:#B3402E;
+  --f-display:"Barlow Condensed","Arial Narrow",sans-serif;
+  --f-body:"Barlow",system-ui,sans-serif;
+  --f-data:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#16191B; --surface:#1E2225; --ink:#E6E9E8; --muted:#98A2A6; --line:#343B3F;
+  --accent:#E0A526; --ok:#4FB27A; --warn:#E0A526; --crit:#E0705C; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#16191B; --surface:#1E2225; --ink:#E6E9E8; --muted:#98A2A6; --line:#343B3F;
+  --accent:#E0A526; --ok:#4FB27A; --warn:#E0A526; --crit:#E0705C; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--f-body);padding-inline:16px;padding-block:32px 48px}
+.wrap{max-width:960px;margin:0 auto;display:grid;gap:24px}
+header{display:grid;gap:4px}
+.tag{font:600 12px var(--f-data);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+h1{font:700 clamp(32px,6vw,48px)/1 var(--f-display);margin:0;letter-spacing:.01em;text-wrap:balance}
+header p{margin:0;color:var(--muted);max-width:60ch}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}
+@media (max-width:720px){.grid{grid-template-columns:minmax(0,1fr)}}
+fieldset{border:1px solid var(--line);background:var(--surface);border-radius:6px;margin:0;padding:20px;display:grid;gap:16px}
+legend{font:600 13px var(--f-data);letter-spacing:.1em;text-transform:uppercase;padding:0 6px;color:var(--muted)}
+.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+label{display:grid;gap:4px;font-size:14px;color:var(--muted)}
+input,select{font:500 18px var(--f-data);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px 10px;width:100%;font-variant-numeric:tabular-nums}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+.out{display:grid;gap:12px;align-content:start}
+.gauges{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.g{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:14px 16px;display:grid;gap:2px}
+.g span{font:600 11px var(--f-data);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.g b{font:600 30px var(--f-data);font-variant-numeric:tabular-nums}
+.g small{color:var(--muted);font-size:13px}
+.g.ok{border-left:4px solid var(--ok)} .g.warn{border-left:4px solid var(--warn)} .g.crit{border-left:4px solid var(--crit)}
+.diag{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:16px 18px}
+.diag h2{font:600 22px var(--f-display);margin:0 0 6px}
+.diag p{margin:0;color:var(--muted)}
+.pill{display:inline-block;font:600 12px var(--f-data);letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:3px;margin-bottom:8px;border:1px solid currentColor}
+footer{color:var(--muted);font-size:13px;max-width:70ch}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="tag">Ferramenta de campo · R-410A</div>
+    <h1>Calculadora de superaquecimento e sub-resfriamento</h1>
+    <p>Digite as pressões do manifold e as temperaturas medidas nos tubos. A calculadora converte pressão em temperatura de saturação e aponta o diagnóstico mais provável.</p>
+  </header>
+
+  <div class="grid">
+    <form id="f" autocomplete="off">
+      <fieldset>
+        <legend>Leituras</legend>
+        <label>Unidade de pressão
+          <select id="un"><option value="psi">psig</option><option value="bar">bar (manométrico)</option></select>
+        </label>
+        <div class="row">
+          <label>Pressão de sucção<input id="ps" type="number" step="0.1" value="118"></label>
+          <label>Temp. tubo de sucção (°C)<input id="ts" type="number" step="0.1" value="10.5"></label>
+        </div>
+        <div class="row">
+          <label>Pressão de líquido / descarga<input id="pl" type="number" step="0.1" value="340"></label>
+          <label>Temp. linha de líquido (°C)<input id="tl" type="number" step="0.1" value="35"></label>
+        </div>
+      </fieldset>
+    </form>
+
+    <div class="out">
+      <div class="gauges">
+        <div class="g"><span>Evaporação</span><b id="te">—</b><small>saturação na sucção</small></div>
+        <div class="g"><span>Condensação</span><b id="tc">—</b><small>saturação no líquido</small></div>
+        <div class="g" id="gsh"><span>Superaquecimento</span><b id="sh">—</b><small>referência 5 a 8 K</small></div>
+        <div class="g" id="gsc"><span>Sub-resfriamento</span><b id="sc">—</b><small>referência 4 a 7 K</small></div>
+      </div>
+      <div class="diag">
+        <div class="pill" id="pill">—</div>
+        <h2 id="dt">—</h2>
+        <p id="dd"></p>
+      </div>
+    </div>
+  </div>
+
+  <footer>Valores de saturação do R-410A interpolados de tabela P-T (ponto de bolha). As faixas de referência são genéricas; o valor correto depende do equipamento, do tipo de expansão (capilar, TXV, EEV) e das condições de ar. Sempre confira os dados do fabricante. Projeto de Lucas Carcerani · Carcerani Energia e Automação.</footer>
+</div>
+
+<script>
+// Tabela de saturação R-410A: temperatura (°C) x pressão absoluta (kPa)
+const TAB=[[-30,271],[-25,329],[-20,400],[-15,481],[-10,573],[-5,678],[0,799],[5,934],[10,1086],[15,1255],[20,1445],[25,1655],[30,1886],[35,2140],[40,2419],[45,2725],[50,3058],[55,3420],[60,3829]];
+
+function paraKpaAbs(v,un){return un==='psi'? v*6.89476+101.325 : v*100+101.325;}
+
+// Interpolação em ln(P), que acompanha melhor a curva de saturação
+function tSat(kpa){
+  if(!isFinite(kpa)||kpa<TAB[0][1]||kpa>TAB[TAB.length-1][1]) return NaN;
+  for(let i=0;i<TAB.length-1;i++){
+    const [t1,p1]=TAB[i],[t2,p2]=TAB[i+1];
+    if(kpa>=p1&&kpa<=p2){const k=(Math.log(kpa)-Math.log(p1))/(Math.log(p2)-Math.log(p1));return t1+k*(t2-t1);}
+  }
+  return NaN;
+}
+
+const $=id=>document.getElementById(id);
+const fmt=(v,u)=>isFinite(v)? v.toFixed(1).replace('.',',')+' '+u : 'fora da faixa';
+
+function estado(v,min,max){return !isFinite(v)?'':v<min?'baixo':v>max?'alto':'normal';}
+function classe(e){return e==='normal'?'ok':e===''?'':'warn';}
+
+const DIAG={
+  'alto|baixo':['Falta de fluido refrigerante','crit','Superaquecimento alto com sub-resfriamento baixo é o sinal típico de carga baixa. Procure vazamento antes de completar a carga.'],
+  'baixo|alto':['Excesso de fluido refrigerante','crit','Superaquecimento baixo com sub-resfriamento alto indica carga acima do necessário. Risco de retorno de líquido ao compressor.'],
+  'alto|alto':['Restrição na linha de líquido','crit','Os dois valores altos apontam para restrição: filtro secador entupido, capilar obstruído ou válvula de expansão fechando demais.'],
+  'baixo|baixo':['Baixa vazão de ar ou compressor fraco','warn','Confira filtros e ventilador do evaporador. Se o ar estiver normal, avalie a eficiência do compressor (corrente e pressões).'],
+  'normal|normal':['Sistema dentro da faixa','ok','Superaquecimento e sub-resfriamento estão na faixa de referência.'],
+};
+
+function calc(){
+  const un=$('un').value;
+  const te=tSat(paraKpaAbs(parseFloat($('ps').value),un));
+  const tc=tSat(paraKpaAbs(parseFloat($('pl').value),un));
+  const sh=parseFloat($('ts').value)-te;
+  const sc=tc-parseFloat($('tl').value);
+  $('te').textContent=fmt(te,'°C'); $('tc').textContent=fmt(tc,'°C');
+  $('sh').textContent=fmt(sh,'K');  $('sc').textContent=fmt(sc,'K');
+  const esh=estado(sh,5,8), esc=estado(sc,4,7);
+  $('gsh').className='g '+classe(esh); $('gsc').className='g '+classe(esc);
+  const d=DIAG[esh+'|'+esc];
+  const pill=$('pill');
+  if(!esh||!esc){pill.textContent='Verifique';pill.style.color='var(--muted)';$('dt').textContent='Leitura incompleta ou fora da tabela';$('dd').textContent='Confira a unidade de pressão e os valores digitados (faixa da tabela: −30 a 60 °C).';return;}
+  if(d){pill.textContent=d[1]==='ok'?'Normal':d[1]==='warn'?'Atenção':'Crítico';pill.style.color='var(--'+d[1]+')';$('dt').textContent=d[0];$('dd').textContent=d[2];}
+  else{pill.textContent='Atenção';pill.style.color='var(--warn)';$('dt').textContent='Um valor fora da faixa';$('dd').textContent='Superaquecimento '+esh+' e sub-resfriamento '+esc+'. Confira a carga térmica do ambiente, o fluxo de ar no condensador e no evaporador e refaça as medições com o sistema estabilizado (15 min ligado).';}
+}
+document.getElementById('f').addEventListener('input',calc);
+calc();
+</script>
+</body>
+</html>
